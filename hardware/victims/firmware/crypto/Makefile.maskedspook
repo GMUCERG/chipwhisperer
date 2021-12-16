@@ -1,0 +1,76 @@
+CRYPTO_LIB = masked_spook/
+
+SRCDIR_SPOOK_MASKED?=$(FIRMWAREPATH)/crypto/$(CRYPTO_LIB)/spook_masked
+SRCDIR_SPOOK_REF?=$(FIRMWAREPATH)/crypto/$(CRYPTO_LIB)/spook_ref
+
+
+
+CDEFS += -DMASKEDSPOOK
+
+# CRYPTO_OPTIONS is used here to select the underlying implementation
+# and their options.
+# For example, CRYPTO_OPTIONS=UCL_MASKED+USE_ASM+ROUNDREDUCED will compile
+# a firmware using the UCLouvain's implementation of masked Spook for Cortex-M4 devices
+# with assembly optomizations
+
+implementation=$(firstword $(subst +, ,$(CRYPTO_OPTIONS)))
+options=$(wordlist 2,$(words $(subst +, ,$(CRYPTO_OPTIONS))),$(subst +, ,$(CRYPTO_OPTIONS)))
+$(info Impletementation=$(implementation))
+$(info Options=$(options))
+
+# Number of shares within the implementation
+D?=8
+
+EXTRAINCDIRS += $(SRCDIR_SPOOK_REF)
+
+SRC += s1p.c encrypt.c primitives.c shadow_32bit.c
+
+
+ifeq ($(findstring USE_PRNG,$(options)),USE_PRNG)
+    CDEFS += -DPRGON=1
+else
+    CDEFS += -DPRGON=0
+endif
+
+ifeq ($(implementation),UCL_MASKED)
+    EXTRAINCDIRS += $(SRCDIR_SPOOK_MASKED)
+    VPATH += $(SRCDIR_SPOOK_MASKED)
+
+    SRC += clyde_masked.c utils_masking.c prng.c
+    CDEFS += -DMASKING -DD=$(D) -DINVERSE
+
+    ifeq ($(findstring USE_ASM,$(options)),USE_ASM)
+       CDEFS += -DUSE_ASM
+       ASRC += utils_masking_asm.S
+    endif
+
+    ifeq ($(findstring ROUNDREDUCED,$(options)),ROUNDREDUCED)
+       CDEFS += -DROUNDREDUCED
+    endif
+
+else ifeq ($(implementation),UCL_REF)
+    CDEFS += -DMASKING -DD=1
+    SRC += clyde_32bit.c
+else
+  $(error Unsupported implementation for masked spook crypto: $(implementation))
+endif
+
+
+
+# ARM Cortex-M4 targets
+ifeq ($(HAL),$(filter $(HAL),sam4l stm32f3 stm32f4 stm32l4 stm32l5 cc2538 k24f k82f nrf52840 efm32tg11b lpc55s6x psoc62))
+  CDEFS += -DANSSI_CM4
+
+  # SRC += platform.c
+
+  CFLAGS +=  -mthumb-interwork -fno-builtin
+  CPPFLAGS += -mthumb-interwork -fno-builtin
+  ASFLAGS += -mthumb-interwork -fno-builtin
+  LDFLAGS += -mthumb-interwork -fno-builtin
+
+
+else ifeq ($(HAL),avr)
+   $(error Unsupported platform/hal AVR for UCL masked Spook crypto)
+else
+   $(error Unsupported implementation for masked Spook crypto: $(HAL))
+endif #hal

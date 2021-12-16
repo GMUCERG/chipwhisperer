@@ -53,7 +53,7 @@ else ifeq ($(CRYPTO_TARGET),MBEDTLS)
 # Crypto Target: MBEDTLS
 # Crypto Options:
 #    AES128 = AES128
-#    SHA1 
+#    SHA1
 # Notes:
 #
   include $(FIRMWAREPATH)/crypto/Makefile.mbedtls
@@ -68,6 +68,9 @@ else ifeq ($(CRYPTO_TARGET),HWAES)
 
 else ifeq ($(CRYPTO_TARGET),MICROECC)
   include $(FIRMWAREPATH)/crypto/Makefile.micro-ecc
+
+else ifeq ($(CRYPTO_TARGET),MASKEDSPOOK)
+    include $(FIRMWAREPATH)/crypto/Makefile.maskedspook
 
 else ifeq ($(CRYPTO_TARGET),NONE)
   #Nothing to do :)
